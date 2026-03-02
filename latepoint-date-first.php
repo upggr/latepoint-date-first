@@ -2,7 +2,7 @@
 /**
  * Plugin Name:  LatePoint – Date First Booking
  * Description:  Reorders the LatePoint booking flow so customers pick a date before selecting a service. Only services that have availability on the chosen date are shown. Useful when every service shares the same work schedule (e.g. beach clubs, venues).
- * Version:      1.1.0
+ * Version:      1.1.1
  * Author:       upggr
  * Author URI:   https://github.com/upggr
  * License:      GPL-2.0-or-later
