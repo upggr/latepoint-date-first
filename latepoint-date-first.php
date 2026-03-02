@@ -3,8 +3,8 @@
  * Plugin Name:  LatePoint – Date First Booking
  * Description:  Reorders the LatePoint booking flow so customers pick a date before selecting a service. Only services that have availability on the chosen date are shown. Useful when every service shares the same work schedule (e.g. beach clubs, venues).
  * Version:      1.1.0
- * Author:       Ioannis Kokkinis
- * Author URI:   https://github.com/ioanniskokkinis
+ * Author:       upggr
+ * Author URI:   https://github.com/upggr
  * License:      GPL-2.0-or-later
  * Requires PHP: 7.4
  */
@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 // Self-hosted updates via GitHub releases.
 require_once __DIR__ . '/plugin-update-checker/plugin-update-checker.php';
 $lp_date_first_updater = \YahnisElsts\PluginUpdateChecker\v5\PucFactory::buildUpdateChecker(
-	'https://github.com/ioanniskokkinis/latepoint-date-first/',
+	'https://github.com/upggr/latepoint-date-first/',
 	__FILE__,
 	'latepoint-date-first'
 );
