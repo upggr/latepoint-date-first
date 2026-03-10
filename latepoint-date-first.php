@@ -2,7 +2,7 @@
 /**
  * Plugin Name:  LatePoint – Date First Booking
  * Description:  Adds a custom booking modal triggered by .latepoint-date-first buttons. Guides the user through category → sub-category → date → available service, then fires the native LatePoint booking modal pre-filled.
- * Version:      3.0.2
+ * Version:      3.0.3
  * Author:       upggr
  * Author URI:   https://github.com/upggr
  * License:      GPL-2.0-or-later
@@ -445,6 +445,12 @@ function lpdf_render_modal(): void {
 						btn.className = 'lpdf-service-btn os_trigger_booking';
 						btn.setAttribute('data-selected-service',    svc.id);
 						btn.setAttribute('data-selected-start-date', dateStr);
+						btn.setAttribute('data-calendar-start-date', dateStr);
+						btn.setAttribute('data-source-id', 'lpdf-' + dateStr + '-' + svc.id);
+						// If only one timeslot exists, pre-select it to skip the datepicker step
+						if (svc.start_time !== null && svc.start_time !== undefined) {
+							btn.setAttribute('data-selected-start-time', svc.start_time);
+						}
 						if (state.locationId && state.locationId !== '0') {
 							btn.setAttribute('data-selected-location', state.locationId);
 						}
@@ -537,13 +543,22 @@ function lpdf_ajax_get_available_services(): void {
 			'duration'    => $service->duration,
 		] );
 		$resources = OsResourceHelper::get_resources_grouped_by_day( $booking_request, $date, $date );
-		if ( ! empty( $resources[ $date_str ] ) ) {
-			$available[] = [
-				'id'    => (int) $service->id,
-				'name'  => $service->name,
-				'price' => method_exists( $service, 'get_price_formatted' ) ? $service->get_price_formatted() : '',
-			];
+		if ( empty( $resources[ $date_str ] ) ) {
+			continue;
 		}
+
+		// Collect all unique start times across all resources for this service+date.
+		$slots = OsResourceHelper::get_ordered_booking_slots_from_resources( $resources[ $date_str ] );
+		$unique_times = array_unique( array_map( fn( $s ) => $s->start_time, $slots ) );
+
+		$available[] = [
+			'id'         => (int) $service->id,
+			'name'       => $service->name,
+			'price'      => method_exists( $service, 'get_price_formatted' ) ? $service->get_price_formatted() : '',
+			// Only set start_time when there is exactly one unique slot — this lets us
+			// pass data-selected-start-time so LatePoint skips the datepicker entirely.
+			'start_time' => count( $unique_times ) === 1 ? reset( $unique_times ) : null,
+		];
 	}
 
 	wp_send_json_success( [ 'services' => $available ] );
