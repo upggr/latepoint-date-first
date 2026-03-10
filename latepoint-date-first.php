@@ -2,7 +2,7 @@
 /**
  * Plugin Name:  LatePoint – Date First Booking
  * Description:  Adds a custom booking modal triggered by .latepoint-date-first buttons. Guides the user through category → sub-category → date → available service, then fires the native LatePoint booking modal pre-filled.
- * Version:      3.0.1
+ * Version:      3.0.2
  * Author:       upggr
  * Author URI:   https://github.com/upggr
  * License:      GPL-2.0-or-later
@@ -67,7 +67,7 @@ function lpdf_render_modal(): void {
 	#lpdf-overlay {
 		position: fixed; inset: 0;
 		background: rgba(0,0,0,.6);
-		z-index: 999999;
+		z-index: 99998;
 		display: flex; align-items: center; justify-content: center;
 		padding: 16px;
 	}
@@ -234,6 +234,13 @@ function lpdf_render_modal(): void {
 		closeBtn.addEventListener('click', close);
 		overlay.addEventListener('click', function(e){ if (e.target === overlay) close(); });
 		document.addEventListener('keydown', function(e){ if (e.key === 'Escape') close(); });
+
+		// Auto-close our modal when LatePoint opens its own lightbox
+		new MutationObserver(function(){
+			if (document.body.classList.contains('latepoint-lightbox-active')) {
+				close();
+			}
+		}).observe(document.body, { attributes: true, attributeFilter: ['class'] });
 
 		// Attach to all .latepoint-date-first triggers (present + future via delegation)
 		document.addEventListener('click', function(e){
@@ -444,7 +451,6 @@ function lpdf_render_modal(): void {
 						btn.innerHTML =
 							'<span class="lpdf-service-name">' + escHtml(svc.name) + '</span>' +
 							(svc.price ? '<span class="lpdf-service-meta">' + escHtml(svc.price) + '</span>' : '');
-						btn.addEventListener('click', function(){ close(); });
 						list.appendChild(btn);
 					});
 					sw.appendChild(list);
