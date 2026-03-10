@@ -2,7 +2,7 @@
 /**
  * Plugin Name:  LatePoint – Date First Booking
  * Description:  Adds a custom booking modal triggered by .latepoint-date-first buttons. Guides the user through category → sub-category → date → available service, then fires the native LatePoint booking modal pre-filled.
- * Version:      3.0.0
+ * Version:      3.0.1
  * Author:       upggr
  * Author URI:   https://github.com/upggr
  * License:      GPL-2.0-or-later
@@ -53,74 +53,141 @@ function lpdf_render_modal(): void {
 	<!-- LatePoint Date First Modal -->
 	<div id="lpdf-overlay" style="display:none;" aria-modal="true" role="dialog" aria-label="<?php esc_attr_e( 'Booking', 'latepoint-date-first' ); ?>">
 		<div id="lpdf-modal">
-			<button id="lpdf-close" aria-label="<?php esc_attr_e( 'Close', 'latepoint-date-first' ); ?>">&times;</button>
+			<div id="lpdf-header">
+				<p id="lpdf-title"><?php esc_html_e( 'Make a Reservation', 'latepoint-date-first' ); ?></p>
+				<button id="lpdf-close" aria-label="<?php esc_attr_e( 'Close', 'latepoint-date-first' ); ?>">&times;</button>
+			</div>
 			<div id="lpdf-breadcrumb"></div>
 			<div id="lpdf-body"></div>
 		</div>
 	</div>
 
 	<style>
+	/* ── Overlay ── */
 	#lpdf-overlay {
-		position:fixed; inset:0; background:rgba(0,0,0,.55);
-		z-index:99999; display:flex; align-items:center; justify-content:center;
+		position: fixed; inset: 0;
+		background: rgba(0,0,0,.6);
+		z-index: 999999;
+		display: flex; align-items: center; justify-content: center;
+		padding: 16px;
 	}
+
+	/* ── Modal shell ── */
 	#lpdf-modal {
-		background:#fff; border-radius:12px; padding:28px;
-		width:min(480px,94vw); max-height:88vh; overflow-y:auto;
-		position:relative; box-shadow:0 8px 40px rgba(0,0,0,.18);
+		background: #fff;
+		border-radius: 16px;
+		width: min(520px, 100%);
+		max-height: 90vh;
+		overflow-y: auto;
+		position: relative;
+		box-shadow: 0 20px 60px rgba(0,0,0,.25);
+		font-family: inherit;
+	}
+
+	/* ── Header bar ── */
+	#lpdf-header {
+		display: flex; align-items: center; justify-content: space-between;
+		padding: 20px 24px 0;
+	}
+	#lpdf-title {
+		font-size: 18px; font-weight: 700; color: #111; margin: 0;
 	}
 	#lpdf-close {
-		position:absolute; top:14px; right:16px;
-		background:none; border:none; font-size:22px; cursor:pointer; line-height:1; color:#666;
+		background: none; border: none; cursor: pointer;
+		width: 32px; height: 32px; border-radius: 50%;
+		display: flex; align-items: center; justify-content: center;
+		font-size: 20px; color: #888; transition: background .15s;
+		flex-shrink: 0;
 	}
-	#lpdf-close:hover { color:#000; }
+	#lpdf-close:hover { background: #f0f0f0; color: #111; }
+
+	/* ── Breadcrumb ── */
 	#lpdf-breadcrumb {
-		display:flex; flex-wrap:wrap; gap:4px; align-items:center;
-		font-size:13px; color:#888; margin-bottom:18px; min-height:20px;
+		display: flex; flex-wrap: wrap; align-items: center; gap: 2px;
+		padding: 10px 24px 0;
+		font-size: 12px; color: #aaa; min-height: 28px;
 	}
-	#lpdf-breadcrumb .lpdf-bc-item { cursor:pointer; color:#0073aa; }
-	#lpdf-breadcrumb .lpdf-bc-item:hover { text-decoration:underline; }
-	#lpdf-breadcrumb .lpdf-bc-sep { color:#ccc; }
-
-	/* Category list */
-	.lpdf-list { display:flex; flex-direction:column; gap:10px; }
-	.lpdf-list-btn {
-		display:flex; align-items:center; justify-content:space-between;
-		width:100%; padding:14px 18px; border-radius:8px; cursor:pointer;
-		border:1px solid #e0e0e0; background:#fafafa; text-align:left;
-		font-size:15px; font-family:inherit; font-weight:600;
-		transition:background .15s, border-color .15s;
+	.lpdf-bc-item {
+		cursor: pointer; color: #555;
+		padding: 2px 4px; border-radius: 4px;
+		transition: background .1s;
 	}
-	.lpdf-list-btn:hover { background:#f0f7ff; border-color:#0073aa; }
-	.lpdf-list-btn .lpdf-arrow { color:#aaa; font-size:18px; }
+	.lpdf-bc-item:hover { background: #f5f5f5; color: #000; }
+	.lpdf-bc-sep { color: #ccc; padding: 0 2px; }
+	.lpdf-bc-current { color: #aaa; cursor: default; padding: 2px 4px; }
 
-	/* Calendar */
-	.lpdf-cal-nav { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
-	.lpdf-cal-nav button { background:none; border:1px solid #ccc; border-radius:4px; padding:4px 12px; cursor:pointer; font-size:18px; line-height:1; }
-	.lpdf-cal-nav button:hover { background:#f5f5f5; }
-	.lpdf-cal-month { font-weight:600; font-size:16px; }
-	.lpdf-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
-	.lpdf-grid .lpdf-dn { text-align:center; font-size:11px; font-weight:600; color:#888; padding:4px 0; }
-	.lpdf-grid .lpdf-day { text-align:center; padding:9px 4px; border-radius:6px; cursor:pointer; font-size:14px; border:1px solid transparent; transition:background .15s; }
-	.lpdf-grid .lpdf-day:hover:not(.lpdf-past):not(.lpdf-empty) { background:#e8f4fd; border-color:#aad4f5; }
-	.lpdf-grid .lpdf-day.lpdf-selected { background:#0073aa; color:#fff; border-color:#0073aa; }
-	.lpdf-grid .lpdf-day.lpdf-past { color:#ccc; cursor:default; }
-	.lpdf-grid .lpdf-day.lpdf-empty { cursor:default; }
-	.lpdf-grid .lpdf-day.lpdf-loading { opacity:.5; cursor:wait; }
+	/* ── Body ── */
+	#lpdf-body { padding: 16px 24px 24px; }
 
-	/* Services list */
-	.lpdf-service-btn {
-		display:flex; align-items:center; justify-content:space-between;
-		width:100%; padding:14px 18px; border-radius:8px; cursor:pointer;
-		border:1px solid #e0e0e0; background:#fafafa; text-align:left;
-		font-size:14px; font-family:inherit;
-		transition:background .15s, border-color .15s;
+	/* ── List buttons (categories & services) ── */
+	.lpdf-list { display: flex; flex-direction: column; gap: 8px; }
+	.lpdf-list-btn, .lpdf-service-btn {
+		display: flex; align-items: center; justify-content: space-between;
+		width: 100%; padding: 14px 16px;
+		border-radius: 10px; cursor: pointer; text-align: left;
+		font-family: inherit; font-size: 14px;
+		border: 1.5px solid #ebebeb; background: #fafafa;
+		transition: border-color .15s, background .15s;
 	}
-	.lpdf-service-btn:hover { background:#f0fff4; border-color:#00a32a; }
-	.lpdf-service-name { font-weight:600; }
-	.lpdf-service-meta { font-size:12px; color:#888; white-space:nowrap; margin-left:12px; }
-	.lpdf-no-avail { font-size:14px; color:#888; margin:8px 0 0; }
-	.lpdf-spinner { text-align:center; padding:20px; color:#888; font-size:14px; }
+	.lpdf-list-btn:hover  { border-color: #bbb; background: #f4f4f4; }
+	.lpdf-service-btn:hover { border-color: #4caf50; background: #f6fff6; }
+	.lpdf-btn-label { font-weight: 600; color: #111; }
+	.lpdf-btn-meta  { font-size: 12px; color: #888; margin-left: 12px; white-space: nowrap; }
+	.lpdf-btn-arrow { color: #bbb; font-size: 16px; margin-left: 8px; }
+
+	/* ── Calendar ── */
+	.lpdf-cal-nav {
+		display: flex; align-items: center; justify-content: space-between;
+		margin-bottom: 14px;
+	}
+	.lpdf-cal-nav-btn {
+		background: none; border: 1.5px solid #e0e0e0; border-radius: 8px;
+		width: 34px; height: 34px; cursor: pointer; font-size: 16px;
+		display: flex; align-items: center; justify-content: center;
+		color: #555; transition: border-color .15s, background .15s;
+	}
+	.lpdf-cal-nav-btn:hover { border-color: #999; background: #f5f5f5; }
+	.lpdf-cal-month { font-weight: 700; font-size: 15px; color: #111; }
+
+	.lpdf-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 3px; }
+	.lpdf-dn {
+		text-align: center; font-size: 11px; font-weight: 600;
+		color: #aaa; padding: 6px 0; text-transform: uppercase; letter-spacing: .03em;
+	}
+	.lpdf-day {
+		text-align: center; padding: 9px 2px;
+		border-radius: 8px; font-size: 13px; cursor: pointer;
+		border: 1.5px solid transparent; color: #222;
+		transition: background .12s, border-color .12s;
+	}
+	.lpdf-day:hover:not(.lpdf-past):not(.lpdf-empty) {
+		background: #f0f7ff; border-color: #90c8f0;
+	}
+	.lpdf-day.lpdf-selected {
+		background: #111; color: #fff; border-color: #111; font-weight: 700;
+	}
+	.lpdf-day.lpdf-past  { color: #d0d0d0; cursor: default; }
+	.lpdf-day.lpdf-empty { cursor: default; }
+	.lpdf-day.lpdf-loading { opacity: .4; cursor: wait; }
+
+	/* ── Services section ── */
+	.lpdf-services-wrap { margin-top: 16px; }
+	.lpdf-services-label {
+		font-size: 11px; font-weight: 700; text-transform: uppercase;
+		letter-spacing: .06em; color: #aaa; margin: 0 0 8px;
+	}
+	.lpdf-service-name { font-weight: 600; color: #111; }
+	.lpdf-service-meta { font-size: 12px; color: #888; margin-left: 12px; }
+
+	/* ── States ── */
+	.lpdf-no-avail {
+		font-size: 14px; color: #999; margin: 8px 0 0;
+		padding: 14px 0; text-align: center;
+	}
+	.lpdf-spinner {
+		text-align: center; padding: 28px 0;
+		font-size: 13px; color: #aaa; letter-spacing: .02em;
+	}
 	</style>
 
 	<script>
@@ -232,7 +299,7 @@ function lpdf_render_modal(): void {
 			cats.forEach(function(cat){
 				var btn = document.createElement('button');
 				btn.className = 'lpdf-list-btn';
-				btn.innerHTML = '<span>' + escHtml(cat.name) + '</span><span class="lpdf-arrow">›</span>';
+				btn.innerHTML = '<span class="lpdf-btn-label">' + escHtml(cat.name) + '</span><span class="lpdf-btn-arrow">›</span>';
 				btn.addEventListener('click', function(){
 					state.categoryId = cat.id;
 					pushCrumb(cat.name, function(){ state.categoryId = cat.id; showCategories(cat.id); });
@@ -265,13 +332,13 @@ function lpdf_render_modal(): void {
 			nav.className = 'lpdf-cal-nav';
 
 			var prev = document.createElement('button');
-			prev.textContent = '←'; prev.type = 'button';
+			prev.className = 'lpdf-cal-nav-btn'; prev.type = 'button'; prev.textContent = '‹';
 			prev.addEventListener('click', function(){
 				calCursor.setMonth(calCursor.getMonth()-1); rebuildCalendar(today, wrap);
 			});
 
 			var next = document.createElement('button');
-			next.textContent = '→'; next.type = 'button';
+			next.className = 'lpdf-cal-nav-btn'; next.type = 'button'; next.textContent = '›';
 			next.addEventListener('click', function(){
 				calCursor.setMonth(calCursor.getMonth()+1); rebuildCalendar(today, wrap);
 			});
@@ -360,8 +427,12 @@ function lpdf_render_modal(): void {
 						sw.innerHTML = '<p class="lpdf-no-avail">' + NO_AVAIL + '</p>';
 						return;
 					}
+					var label = document.createElement('p');
+					label.className = 'lpdf-services-label';
+					label.textContent = <?php echo json_encode( __( 'Available options', 'latepoint-date-first' ) ); ?>;
+					sw.appendChild(label);
 					var list = document.createElement('div');
-					list.className = 'lpdf-list'; list.style.marginTop = '16px';
+					list.className = 'lpdf-list';
 					data.data.services.forEach(function(svc){
 						var btn = document.createElement('button');
 						btn.className = 'lpdf-service-btn os_trigger_booking';
@@ -448,7 +519,7 @@ function lpdf_ajax_get_available_services(): void {
 	if ( $category_id ) {
 		$where['category_id'] = $category_id;
 	}
-	$services = OsServiceModel::where( $where )->get_results_as_models();
+	$services = ( new OsServiceModel() )->where( $where )->get_results_as_models();
 
 	$available = [];
 	foreach ( $services as $service ) {
