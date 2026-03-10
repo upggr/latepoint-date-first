@@ -2,7 +2,7 @@
 /**
  * Plugin Name:  LatePoint – Date First Booking
  * Description:  Adds a custom booking modal triggered by .latepoint-date-first buttons. Guides the user through category → sub-category → date → available service, then fires the native LatePoint booking modal pre-filled.
- * Version:      3.0.3
+ * Version:      3.1.0
  * Author:       upggr
  * Author URI:   https://github.com/upggr
  * License:      GPL-2.0-or-later
@@ -166,9 +166,10 @@ function lpdf_render_modal(): void {
 	.lpdf-day.lpdf-selected {
 		background: #111; color: #fff; border-color: #111; font-weight: 700;
 	}
-	.lpdf-day.lpdf-past  { color: #d0d0d0; cursor: default; }
-	.lpdf-day.lpdf-empty { cursor: default; }
-	.lpdf-day.lpdf-loading { opacity: .4; cursor: wait; }
+	.lpdf-day.lpdf-past    { color: #d0d0d0; cursor: default; }
+	.lpdf-day.lpdf-empty   { cursor: default; }
+	.lpdf-day.lpdf-loading { color: #d0d0d0; cursor: default; }
+	.lpdf-day.lpdf-unavail { color: #d0d0d0; cursor: default; text-decoration: line-through; }
 
 	/* ── Services section ── */
 	.lpdf-services-wrap { margin-top: 16px; }
@@ -208,6 +209,7 @@ function lpdf_render_modal(): void {
 
 		// State
 		var state = {};
+		var availableDatesCache = {}; // "YYYY-MM|catId" → Set of "YYYY-MM-DD"
 
 		function resetState() {
 			state = { locationId: 0, agentId: 0, crumbs: [], categoryId: null, date: null };
@@ -332,6 +334,41 @@ function lpdf_render_modal(): void {
 			renderCalendar(today);
 		}
 
+		// Fetch open dates for the current calCursor month (cached).
+		function getAvailableDatesForMonth(today, label, grid) {
+			var monthKey = calCursor.getFullYear() + '-' + pad(calCursor.getMonth() + 1) + '|' + (state.categoryId || 0);
+			if (availableDatesCache[monthKey] !== undefined) {
+				fillCalendar(today, label, grid, availableDatesCache[monthKey]);
+				return;
+			}
+			// Mark all non-past days as loading while we fetch
+			fillCalendar(today, label, grid, null);
+
+			var fd = new FormData();
+			fd.append('action',      'lpdf_get_available_dates');
+			fd.append('nonce',       NONCE);
+			fd.append('year',        calCursor.getFullYear());
+			fd.append('month',       calCursor.getMonth() + 1);
+			fd.append('category_id', state.categoryId || 0);
+			fd.append('location_id', state.locationId || 0);
+			fd.append('agent_id',    state.agentId    || 0);
+
+			fetch(AJAX_URL, { method: 'POST', body: fd })
+				.then(function(r){ return r.json(); })
+				.then(function(data){
+					var openDates = null;
+					if (data.success && data.data.dates) {
+						openDates = {};
+						data.data.dates.forEach(function(d){ openDates[d] = true; });
+					}
+					availableDatesCache[monthKey] = openDates;
+					fillCalendar(today, label, grid, openDates);
+				})
+				.catch(function(){
+					fillCalendar(today, label, grid, null); // on error, allow all dates
+				});
+		}
+
 		function renderCalendar(today) {
 			var wrap = document.createElement('div');
 
@@ -363,16 +400,17 @@ function lpdf_render_modal(): void {
 			body.innerHTML = '';
 			body.appendChild(wrap);
 
-			fillCalendar(today, label, grid);
+			getAvailableDatesForMonth(today, label, grid);
 		}
 
 		function rebuildCalendar(today, wrap) {
 			var label = wrap.querySelector('.lpdf-cal-month');
 			var grid  = wrap.querySelector('.lpdf-grid');
-			fillCalendar(today, label, grid);
+			getAvailableDatesForMonth(today, label, grid);
 		}
 
-		function fillCalendar(today, label, grid) {
+		// openDates: null = unknown/all clickable, object = map of available date strings
+		function fillCalendar(today, label, grid, openDates) {
 			label.textContent = MONTH_NAMES[calCursor.getMonth()] + ' ' + calCursor.getFullYear();
 			grid.innerHTML = '';
 
@@ -394,6 +432,13 @@ function lpdf_render_modal(): void {
 				var dtStr = fmtDate(dt);
 				if (dt < today) {
 					day.classList.add('lpdf-past');
+				} else if (openDates === null) {
+					// Still loading — show loading state
+					day.classList.add('lpdf-loading');
+				} else if (openDates && !openDates[dtStr]) {
+					// Known to be unavailable
+					day.classList.add('lpdf-unavail');
+					day.title = <?php echo json_encode( __( 'Not available', 'latepoint-date-first' ) ); ?>;
 				} else {
 					if (state.date === dtStr) day.classList.add('lpdf-selected');
 					day.addEventListener('click', (function(s, el){ return function(){
@@ -547,21 +592,93 @@ function lpdf_ajax_get_available_services(): void {
 			continue;
 		}
 
-		// Collect all unique start times across all resources for this service+date.
+		// A resource object is always returned even for closed/blocked days.
+		// Use get_ordered_booking_slots_from_resources to determine real availability:
+		// it returns slots only when work_time_periods are set (i.e., the day is open).
 		$slots = OsResourceHelper::get_ordered_booking_slots_from_resources( $resources[ $date_str ] );
-		$unique_times = array_unique( array_map( fn( $s ) => $s->start_time, $slots ) );
+		if ( empty( $slots ) ) {
+			continue; // day is closed / blocked for this service
+		}
+
+		$unique_times = array_unique( array_map( function ( $s ) { return $s->start_time; }, $slots ) );
 
 		$available[] = [
 			'id'         => (int) $service->id,
 			'name'       => $service->name,
 			'price'      => method_exists( $service, 'get_price_formatted' ) ? $service->get_price_formatted() : '',
-			// Only set start_time when there is exactly one unique slot — this lets us
-			// pass data-selected-start-time so LatePoint skips the datepicker entirely.
-			'start_time' => count( $unique_times ) === 1 ? reset( $unique_times ) : null,
+			// Pass start_time when there is exactly one unique slot so LatePoint skips
+			// the datepicker step entirely (requires both selected_start_date + selected_start_time).
+			'start_time' => count( $unique_times ) === 1 ? (int) reset( $unique_times ) : null,
 		];
 	}
 
 	wp_send_json_success( [ 'services' => $available ] );
+}
+
+// ---------------------------------------------------------------------------
+// AJAX: get available dates for a given month + category
+// ---------------------------------------------------------------------------
+
+add_action( 'wp_ajax_lpdf_get_available_dates',        'lpdf_ajax_get_available_dates' );
+add_action( 'wp_ajax_nopriv_lpdf_get_available_dates', 'lpdf_ajax_get_available_dates' );
+
+function lpdf_ajax_get_available_dates(): void {
+	check_ajax_referer( 'lpdf_availability', 'nonce' );
+
+	$year        = (int) ( $_POST['year']        ?? date( 'Y' ) );
+	$month       = (int) ( $_POST['month']       ?? date( 'n' ) );
+	$category_id = (int) ( $_POST['category_id'] ?? 0 );
+	$location_id = (int) ( $_POST['location_id'] ?? 0 );
+	$agent_id    = (int) ( $_POST['agent_id']    ?? 0 );
+
+	if ( $year < 2000 || $year > 2100 || $month < 1 || $month > 12 ) {
+		wp_send_json_error( [ 'message' => 'Invalid month.' ] );
+	}
+
+	$where = [ 'status' => 'active' ];
+	if ( $category_id ) {
+		$where['category_id'] = $category_id;
+	}
+	$services = ( new OsServiceModel() )->where( $where )->get_results_as_models();
+
+	if ( empty( $services ) ) {
+		wp_send_json_success( [ 'dates' => [] ] );
+	}
+
+	// Iterate every day in the month and check if at least one service is bookable.
+	$days_in_month = (int) date( 't', mktime( 0, 0, 0, $month, 1, $year ) );
+	$open_dates    = [];
+
+	for ( $day = 1; $day <= $days_in_month; $day++ ) {
+		$date_str = sprintf( '%04d-%02d-%02d', $year, $month, $day );
+
+		try {
+			$date = new OsWpDateTime( $date_str );
+		} catch ( Exception $e ) {
+			continue;
+		}
+
+		foreach ( $services as $service ) {
+			$booking_request = new \LatePoint\Misc\BookingRequest( [
+				'service_id'  => $service->id,
+				'agent_id'    => $agent_id,
+				'location_id' => $location_id,
+				'start_date'  => $date_str,
+				'duration'    => $service->duration,
+			] );
+			$resources = OsResourceHelper::get_resources_grouped_by_day( $booking_request, $date, $date );
+			if ( empty( $resources[ $date_str ] ) ) {
+				continue;
+			}
+			$slots = OsResourceHelper::get_ordered_booking_slots_from_resources( $resources[ $date_str ] );
+			if ( ! empty( $slots ) ) {
+				$open_dates[] = $date_str;
+				break; // at least one service available on this day — move to next day
+			}
+		}
+	}
+
+	wp_send_json_success( [ 'dates' => $open_dates ] );
 }
 
 // ---------------------------------------------------------------------------
