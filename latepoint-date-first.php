@@ -66,7 +66,7 @@ function lpdf_render_modal(): void {
 	/* ── Overlay ── */
 	#lpdf-overlay {
 		position: fixed; inset: 0;
-		background: rgba(0,0,0,.6);
+		background: rgba(35,31,32,.7);
 		z-index: 99998;
 		display: flex; align-items: center; justify-content: center;
 		padding: 16px;
@@ -74,129 +74,141 @@ function lpdf_render_modal(): void {
 
 	/* ── Modal shell ── */
 	#lpdf-modal {
-		background: #fff;
-		border-radius: 16px;
-		width: min(520px, 100%);
+		background: #fffbf3;
+		border-radius: 4px;
+		width: min(540px, 100%);
 		max-height: 90vh;
 		overflow-y: auto;
 		position: relative;
-		box-shadow: 0 20px 60px rgba(0,0,0,.25);
-		font-family: inherit;
+		box-shadow: 0 24px 80px rgba(35,31,32,.35);
+		font-family: 'Quattrocento Sans', sans-serif;
+		color: #3B2F2F;
 	}
 
 	/* ── Header bar ── */
 	#lpdf-header {
 		display: flex; align-items: center; justify-content: space-between;
-		padding: 20px 24px 0;
+		padding: 28px 28px 0;
+		border-bottom: 1px solid #e8dfd0;
+		padding-bottom: 20px;
 	}
 	#lpdf-title {
-		font-size: 18px; font-weight: 700; color: #111; margin: 0;
+		font-family: 'Quattrocento', serif;
+		font-size: 22px; font-weight: 400; color: #231F20; margin: 0;
+		letter-spacing: .04em;
 	}
 	#lpdf-close {
 		background: none; border: none; cursor: pointer;
 		width: 32px; height: 32px; border-radius: 50%;
 		display: flex; align-items: center; justify-content: center;
-		font-size: 20px; color: #888; transition: background .15s;
-		flex-shrink: 0;
+		font-size: 22px; color: #C3B59B; transition: color .15s;
+		flex-shrink: 0; line-height: 1;
 	}
-	#lpdf-close:hover { background: #f0f0f0; color: #111; }
+	#lpdf-close:hover { color: #231F20; }
 
 	/* ── Breadcrumb ── */
 	#lpdf-breadcrumb {
 		display: flex; flex-wrap: wrap; align-items: center; gap: 2px;
-		padding: 10px 24px 0;
-		font-size: 12px; color: #aaa; min-height: 28px;
+		padding: 12px 28px 0;
+		font-size: 11px; min-height: 26px;
+		letter-spacing: .06em; text-transform: uppercase;
 	}
 	.lpdf-bc-item {
-		cursor: pointer; color: #555;
-		padding: 2px 4px; border-radius: 4px;
-		transition: background .1s;
+		cursor: pointer; color: #C3B59B;
+		padding: 2px 4px;
+		transition: color .1s;
 	}
-	.lpdf-bc-item:hover { background: #f5f5f5; color: #000; }
-	.lpdf-bc-sep { color: #ccc; padding: 0 2px; }
-	.lpdf-bc-current { color: #aaa; cursor: default; padding: 2px 4px; }
+	.lpdf-bc-item:hover { color: #231F20; }
+	.lpdf-bc-sep { color: #ddd; padding: 0 2px; }
+	.lpdf-bc-current { color: #bbb; cursor: default; padding: 2px 4px; }
 
 	/* ── Body ── */
-	#lpdf-body { padding: 16px 24px 24px; }
+	#lpdf-body { padding: 16px 28px 28px; }
 
 	/* ── List buttons (categories & services) ── */
-	.lpdf-list { display: flex; flex-direction: column; gap: 8px; }
+	.lpdf-list { display: flex; flex-direction: column; gap: 6px; }
 	.lpdf-list-btn, .lpdf-service-btn {
 		display: flex; align-items: center; justify-content: space-between;
-		width: 100%; padding: 14px 16px;
-		border-radius: 10px; cursor: pointer; text-align: left;
-		font-family: inherit; font-size: 14px;
-		border: 1.5px solid #ebebeb; background: #fafafa;
+		width: 100%; padding: 16px 18px;
+		border-radius: 2px; cursor: pointer; text-align: left;
+		font-family: 'Quattrocento Sans', sans-serif; font-size: 14px;
+		border: 1px solid #e8dfd0; background: #fff;
 		transition: border-color .15s, background .15s;
+		letter-spacing: .02em;
 	}
-	.lpdf-list-btn:hover  { border-color: #bbb; background: #f4f4f4; }
-	.lpdf-service-btn:hover { border-color: #4caf50; background: #f6fff6; }
-	.lpdf-btn-label { font-weight: 600; color: #111; }
-	.lpdf-btn-meta  { font-size: 12px; color: #888; margin-left: 12px; white-space: nowrap; }
-	.lpdf-btn-arrow { color: #bbb; font-size: 16px; margin-left: 8px; }
+	.lpdf-list-btn:hover   { border-color: #C3B59B; background: #fdf8f0; }
+	.lpdf-service-btn:hover { border-color: #C3B59B; background: #fdf8f0; }
+	.lpdf-btn-label { font-weight: 400; color: #3B2F2F; }
+	.lpdf-btn-meta  { font-size: 12px; color: #C3B59B; margin-left: 12px; white-space: nowrap; }
+	.lpdf-btn-arrow { color: #C3B59B; font-size: 14px; margin-left: 8px; }
 
 	/* ── Calendar ── */
 	.lpdf-cal-nav {
 		display: flex; align-items: center; justify-content: space-between;
-		margin-bottom: 14px;
+		margin-bottom: 16px;
 	}
 	.lpdf-cal-nav-btn {
-		background: none; border: 1.5px solid #e0e0e0; border-radius: 8px;
+		background: none; border: 1px solid #e8dfd0; border-radius: 2px;
 		width: 34px; height: 34px; cursor: pointer; font-size: 16px;
 		display: flex; align-items: center; justify-content: center;
-		color: #555; transition: border-color .15s, background .15s;
+		color: #C3B59B; transition: border-color .15s, color .15s;
 	}
-	.lpdf-cal-nav-btn:hover { border-color: #999; background: #f5f5f5; }
-	.lpdf-cal-month { font-weight: 700; font-size: 15px; color: #111; }
+	.lpdf-cal-nav-btn:hover { border-color: #C3B59B; color: #231F20; }
+	.lpdf-cal-month {
+		font-family: 'Quattrocento', serif;
+		font-weight: 400; font-size: 16px; color: #231F20;
+		letter-spacing: .08em; text-transform: uppercase;
+	}
 
 	.lpdf-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 3px; }
 	.lpdf-dn {
-		text-align: center; font-size: 11px; font-weight: 600;
-		color: #aaa; padding: 6px 0; text-transform: uppercase; letter-spacing: .03em;
+		text-align: center; font-size: 10px; font-weight: 400;
+		color: #C3B59B; padding: 6px 0; text-transform: uppercase; letter-spacing: .08em;
 	}
 	.lpdf-day {
 		text-align: center; padding: 9px 2px;
-		border-radius: 8px; font-size: 13px; cursor: pointer;
-		border: 1.5px solid transparent; color: #222;
-		transition: background .12s, border-color .12s;
+		border-radius: 2px; font-size: 13px; cursor: pointer;
+		border: 1px solid transparent; color: #3B2F2F;
+		transition: background .12s, border-color .12s, color .12s;
 	}
-	.lpdf-day:hover:not(.lpdf-past):not(.lpdf-empty) {
-		background: #f0f7ff; border-color: #90c8f0;
+	.lpdf-day:hover:not(.lpdf-past):not(.lpdf-empty):not(.lpdf-unavail):not(.lpdf-loading) {
+		background: #fdf8f0; border-color: #C3B59B;
 	}
 	.lpdf-day.lpdf-selected {
-		background: #111; color: #fff; border-color: #111; font-weight: 700;
+		background: #231F20; color: #fffbf3; border-color: #231F20; font-weight: 700;
 	}
-	.lpdf-day.lpdf-past    { color: #d0d0d0; cursor: default; }
+	.lpdf-day.lpdf-past    { color: #ddd; cursor: default; }
 	.lpdf-day.lpdf-empty   { cursor: default; }
-	.lpdf-day.lpdf-loading { color: #d0d0d0; cursor: default; }
-	.lpdf-day.lpdf-unavail { color: #d0d0d0; cursor: default; text-decoration: line-through; }
+	.lpdf-day.lpdf-loading { color: #ddd; cursor: default; }
+	.lpdf-day.lpdf-unavail { color: #ddd; cursor: default; text-decoration: line-through; }
 
 	/* ── Services section ── */
-	.lpdf-services-wrap { margin-top: 16px; }
+	.lpdf-services-wrap { margin-top: 20px; }
 	.lpdf-services-label {
-		font-size: 11px; font-weight: 700; text-transform: uppercase;
-		letter-spacing: .06em; color: #aaa; margin: 0 0 8px;
+		font-size: 10px; font-weight: 400; text-transform: uppercase;
+		letter-spacing: .1em; color: #C3B59B; margin: 0 0 10px;
 	}
-	.lpdf-service-name { font-weight: 600; color: #111; }
-	.lpdf-service-meta { font-size: 12px; color: #888; margin-left: 12px; }
+	.lpdf-service-name { font-weight: 400; color: #3B2F2F; }
+	.lpdf-service-meta { font-size: 12px; color: #C3B59B; margin-left: 12px; }
 
 	/* ── States ── */
 	.lpdf-no-avail {
-		font-size: 14px; color: #999; margin: 8px 0 0;
-		padding: 14px 0; text-align: center;
+		font-size: 13px; color: #C3B59B; margin: 8px 0 0;
+		padding: 16px 0; text-align: center; letter-spacing: .02em;
 	}
 	.lpdf-spinner {
 		text-align: center; padding: 28px 0;
-		font-size: 13px; color: #aaa; letter-spacing: .02em;
+		font-size: 12px; color: #C3B59B; letter-spacing: .08em; text-transform: uppercase;
 	}
 	.lpdf-back-btn {
 		display: block; width: 100%; margin-top: 8px;
-		padding: 12px 16px; border-radius: 10px; cursor: pointer;
-		text-align: center; font-family: inherit; font-size: 13px;
-		border: 1.5px solid #ebebeb; background: #fafafa; color: #555;
-		transition: border-color .15s, background .15s;
+		padding: 13px 16px; border-radius: 2px; cursor: pointer;
+		text-align: center; font-family: 'Quattrocento Sans', sans-serif; font-size: 12px;
+		border: 1px solid #e8dfd0; background: transparent; color: #C3B59B;
+		transition: border-color .15s, color .15s;
+		letter-spacing: .06em; text-transform: uppercase;
 	}
-	.lpdf-back-btn:hover { border-color: #bbb; background: #f4f4f4; color: #111; }
+	.lpdf-back-btn:hover { border-color: #C3B59B; color: #231F20; }
 	</style>
 
 	<script>
@@ -220,15 +232,17 @@ function lpdf_render_modal(): void {
 		var availableDatesCache = {}; // "YYYY-MM|catId" → Set of "YYYY-MM-DD"
 
 		function resetState() {
-			state = { locationId: 0, agentId: 0, crumbs: [], categoryId: null, singleServiceId: null, date: null };
+			state = { locationId: 0, agentId: 0, hideSidePanel: null, hideSummary: null, crumbs: [], categoryId: null, singleServiceId: null, date: null };
 		}
 
 		// ---- Open / close ----
 
 		function open(trigger) {
 			resetState();
-			state.locationId = trigger.dataset.location || 0;
-			state.agentId    = trigger.dataset.agent    || 0;
+			state.locationId    = trigger.dataset.selectedLocation || trigger.dataset.location || 0;
+			state.agentId       = trigger.dataset.selectedAgent   || 0;
+			state.hideSidePanel = trigger.dataset.hideSidePanel || null;
+			state.hideSummary   = trigger.dataset.hideSummary   || null;
 			overlay.style.display = 'flex';
 			document.body.style.overflow = 'hidden';
 			showCategories(0); // start at root
@@ -318,14 +332,17 @@ function lpdf_render_modal(): void {
 				btn.className = 'lpdf-list-btn';
 				btn.innerHTML = '<span class="lpdf-btn-label">' + escHtml(cat.name) + '</span><span class="lpdf-btn-arrow">›</span>';
 				if (cat.type === 'service') {
-					// Uncategorized service — clicking goes straight to date picker for this single service.
-					// We store the service as selected by setting a special state flag.
-					btn.addEventListener('click', function(){
-						state.categoryId = null;
-						state.singleServiceId = cat.id;
-						pushCrumb(cat.name, function(){ state.categoryId = null; state.singleServiceId = cat.id; showDatePicker(); });
-						showDatePicker();
-					});
+					// Uncategorized service (e.g. Restaurant Experience) — fire LatePoint directly.
+					// No intermediate date step needed; LatePoint shows its own full date+time picker.
+					btn.className += ' os_trigger_booking';
+					btn.setAttribute('data-selected-service', cat.id);
+					btn.setAttribute('data-source-id', 'lpdf-svc-' + cat.id);
+					if (state.locationId    && state.locationId    !== '0') { btn.setAttribute('data-selected-location',  state.locationId); }
+					if (state.agentId       && state.agentId       !== '0') { btn.setAttribute('data-selected-agent',      state.agentId); }
+					if (state.hideSidePanel)                                 { btn.setAttribute('data-hide-side-panel',     state.hideSidePanel); }
+					if (state.hideSummary)                                   { btn.setAttribute('data-hide-summary',        state.hideSummary); }
+					// LatePoint's delegated os_trigger_booking handler fires on click.
+					// Our MutationObserver auto-closes this modal when LatePoint opens.
 				} else {
 					btn.addEventListener('click', function(){
 						state.categoryId = cat.id;
@@ -549,9 +566,10 @@ function lpdf_render_modal(): void {
 						if (svc.start_time !== null && svc.start_time !== undefined) {
 							btn.setAttribute('data-selected-start-time', svc.start_time);
 						}
-						if (state.locationId && state.locationId !== '0') {
-							btn.setAttribute('data-selected-location', state.locationId);
-						}
+						if (state.locationId    && state.locationId    !== '0')    { btn.setAttribute('data-selected-location',  state.locationId); }
+						if (state.agentId       && state.agentId       !== '0')    { btn.setAttribute('data-selected-agent',      state.agentId); }
+						if (state.hideSidePanel)                                    { btn.setAttribute('data-hide-side-panel',     state.hideSidePanel); }
+						if (state.hideSummary)                                      { btn.setAttribute('data-hide-summary',        state.hideSummary); }
 						btn.innerHTML =
 							'<span class="lpdf-service-name">' + escHtml(svc.name) + '</span>' +
 							(svc.price ? '<span class="lpdf-service-meta">' + escHtml(svc.price) + '</span>' : '');
@@ -667,8 +685,10 @@ function lpdf_ajax_get_available_services(): void {
 		// Use get_ordered_booking_slots_from_resources to determine real availability:
 		// it returns slots only when work_time_periods are set (i.e., the day is open).
 		$slots = OsResourceHelper::get_ordered_booking_slots_from_resources( $resources[ $date_str ] );
+		// Filter to slots that can actually accommodate at least 1 attendee (excludes fully booked slots).
+		$slots = array_filter( $slots, function ( $s ) { return $s->can_accomodate( 1 ); } );
 		if ( empty( $slots ) ) {
-			continue; // day is closed / blocked for this service
+			continue; // day is closed, blocked, or fully booked for this service
 		}
 
 		$unique_times = array_unique( array_map( function ( $s ) { return $s->start_time; }, $slots ) );
@@ -745,6 +765,7 @@ function lpdf_ajax_get_available_dates(): void {
 				continue;
 			}
 			$slots = OsResourceHelper::get_ordered_booking_slots_from_resources( $resources[ $date_str ] );
+			$slots = array_filter( $slots, function ( $s ) { return $s->can_accomodate( 1 ); } );
 			if ( ! empty( $slots ) ) {
 				$open_dates[] = $date_str;
 				break; // at least one service available on this day — move to next day
