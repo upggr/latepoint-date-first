@@ -189,6 +189,14 @@ function lpdf_render_modal(): void {
 		text-align: center; padding: 28px 0;
 		font-size: 13px; color: #aaa; letter-spacing: .02em;
 	}
+	.lpdf-back-btn {
+		display: block; width: 100%; margin-top: 8px;
+		padding: 12px 16px; border-radius: 10px; cursor: pointer;
+		text-align: center; font-family: inherit; font-size: 13px;
+		border: 1.5px solid #ebebeb; background: #fafafa; color: #555;
+		transition: border-color .15s, background .15s;
+	}
+	.lpdf-back-btn:hover { border-color: #bbb; background: #f4f4f4; color: #111; }
 	</style>
 
 	<script>
@@ -212,7 +220,7 @@ function lpdf_render_modal(): void {
 		var availableDatesCache = {}; // "YYYY-MM|catId" → Set of "YYYY-MM-DD"
 
 		function resetState() {
-			state = { locationId: 0, agentId: 0, crumbs: [], categoryId: null, date: null };
+			state = { locationId: 0, agentId: 0, crumbs: [], categoryId: null, singleServiceId: null, date: null };
 		}
 
 		// ---- Open / close ----
@@ -309,12 +317,24 @@ function lpdf_render_modal(): void {
 				var btn = document.createElement('button');
 				btn.className = 'lpdf-list-btn';
 				btn.innerHTML = '<span class="lpdf-btn-label">' + escHtml(cat.name) + '</span><span class="lpdf-btn-arrow">›</span>';
-				btn.addEventListener('click', function(){
-					state.categoryId = cat.id;
-					pushCrumb(cat.name, function(){ state.categoryId = cat.id; showCategories(cat.id); });
-					// Check if this category has children; showCategories will fall through to date picker if not
-					showCategories(cat.id);
-				});
+				if (cat.type === 'service') {
+					// Uncategorized service — clicking goes straight to date picker for this single service.
+					// We store the service as selected by setting a special state flag.
+					btn.addEventListener('click', function(){
+						state.categoryId = null;
+						state.singleServiceId = cat.id;
+						pushCrumb(cat.name, function(){ state.categoryId = null; state.singleServiceId = cat.id; showDatePicker(); });
+						showDatePicker();
+					});
+				} else {
+					btn.addEventListener('click', function(){
+						state.categoryId = cat.id;
+						state.singleServiceId = null;
+						pushCrumb(cat.name, function(){ state.categoryId = cat.id; state.singleServiceId = null; showCategories(cat.id); });
+						// Check if this category has children; showCategories will fall through to date picker if not
+						showCategories(cat.id);
+					});
+				}
 				wrap.appendChild(btn);
 			});
 			body.innerHTML = '';
@@ -336,7 +356,7 @@ function lpdf_render_modal(): void {
 
 		// Fetch open dates for the current calCursor month (cached).
 		function getAvailableDatesForMonth(today, label, grid) {
-			var monthKey = calCursor.getFullYear() + '-' + pad(calCursor.getMonth() + 1) + '|' + (state.categoryId || 0);
+			var monthKey = calCursor.getFullYear() + '-' + pad(calCursor.getMonth() + 1) + '|' + (state.categoryId || 0) + '|' + (state.singleServiceId || 0);
 			if (availableDatesCache[monthKey] !== undefined) {
 				fillCalendar(today, label, grid, availableDatesCache[monthKey]);
 				return;
@@ -349,9 +369,10 @@ function lpdf_render_modal(): void {
 			fd.append('nonce',       NONCE);
 			fd.append('year',        calCursor.getFullYear());
 			fd.append('month',       calCursor.getMonth() + 1);
-			fd.append('category_id', state.categoryId || 0);
-			fd.append('location_id', state.locationId || 0);
-			fd.append('agent_id',    state.agentId    || 0);
+			fd.append('category_id', state.categoryId    || 0);
+			fd.append('service_id',  state.singleServiceId || 0);
+			fd.append('location_id', state.locationId    || 0);
+			fd.append('agent_id',    state.agentId       || 0);
 
 			fetch(AJAX_URL, { method: 'POST', body: fd })
 				.then(function(r){ return r.json(); })
@@ -467,16 +488,48 @@ function lpdf_render_modal(): void {
 			fd.append('action',      'lpdf_get_available_services');
 			fd.append('nonce',       NONCE);
 			fd.append('date',        dateStr);
-			fd.append('category_id', state.categoryId || 0);
-			fd.append('location_id', state.locationId  || 0);
-			fd.append('agent_id',    state.agentId     || 0);
+			fd.append('category_id', state.categoryId    || 0);
+			fd.append('service_id',  state.singleServiceId || 0);
+			fd.append('location_id', state.locationId    || 0);
+			fd.append('agent_id',    state.agentId       || 0);
 
 			fetch(AJAX_URL, { method:'POST', body:fd })
 				.then(function(r){ return r.json(); })
 				.then(function(data){
 					sw.innerHTML = '';
 					if (!data.success || !data.data.services.length) {
-						sw.innerHTML = '<p class="lpdf-no-avail">' + NO_AVAIL + '</p>';
+						var noAvailP = document.createElement('p');
+						noAvailP.className = 'lpdf-no-avail';
+						noAvailP.textContent = NO_AVAIL;
+						sw.appendChild(noAvailP);
+						// "Try another date" — deselects day, stays on calendar
+						var tryDateBtn = document.createElement('button');
+						tryDateBtn.type = 'button';
+						tryDateBtn.className = 'lpdf-back-btn';
+						tryDateBtn.textContent = <?php echo json_encode( __( '← Try another date', 'latepoint-date-first' ) ); ?>;
+						tryDateBtn.addEventListener('click', function(){
+							sw.remove();
+							body.querySelectorAll('.lpdf-day.lpdf-selected').forEach(function(c){ c.classList.remove('lpdf-selected'); });
+							state.date = null;
+						});
+						sw.appendChild(tryDateBtn);
+						// "Change category" — goes back via breadcrumb (click second-to-last crumb if any)
+						if (state.crumbs.length > 1) {
+							var tryCatBtn = document.createElement('button');
+							tryCatBtn.type = 'button';
+							tryCatBtn.className = 'lpdf-back-btn';
+							tryCatBtn.textContent = <?php echo json_encode( __( '← Change category', 'latepoint-date-first' ) ); ?>;
+							tryCatBtn.addEventListener('click', function(){
+								var prevCrumb = state.crumbs[state.crumbs.length - 2];
+								if (prevCrumb) {
+									state.crumbs = state.crumbs.slice(0, state.crumbs.length - 2);
+									renderBreadcrumb();
+									prevCrumb.action();
+								}
+							});
+							sw.appendChild(tryCatBtn);
+						}
+						sw.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 						return;
 					}
 					var label = document.createElement('p');
@@ -505,6 +558,8 @@ function lpdf_render_modal(): void {
 						list.appendChild(btn);
 					});
 					sw.appendChild(list);
+					// Scroll down to services once loaded
+					sw.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 				})
 				.catch(function(){ sw.innerHTML = '<p class="lpdf-no-avail">' + ERROR_MSG + '</p>'; });
 		}
@@ -541,8 +596,21 @@ function lpdf_ajax_get_categories(): void {
 	) );
 
 	$categories = array_map( function( $r ) {
-		return [ 'id' => (int) $r->id, 'name' => $r->name ];
+		return [ 'id' => (int) $r->id, 'name' => $r->name, 'type' => 'category' ];
 	}, $rows );
+
+	// At root level (parent_id=0), also include active services with no category
+	// so they appear as direct options alongside top-level categories.
+	if ( ! $parent_id ) {
+		$uncategorized = $wpdb->get_results(
+			"SELECT id, name FROM {$wpdb->prefix}latepoint_services
+			 WHERE status = 'active' AND (category_id = 0 OR category_id IS NULL)
+			 ORDER BY order_number ASC"
+		);
+		foreach ( $uncategorized as $svc ) {
+			$categories[] = [ 'id' => (int) $svc->id, 'name' => $svc->name, 'type' => 'service' ];
+		}
+	}
 
 	wp_send_json_success( [ 'categories' => $categories ] );
 }
@@ -559,6 +627,7 @@ function lpdf_ajax_get_available_services(): void {
 
 	$date_str    = sanitize_text_field( $_POST['date']        ?? '' );
 	$category_id = (int) ( $_POST['category_id'] ?? 0 );
+	$service_id  = (int) ( $_POST['service_id']  ?? 0 );
 	$location_id = (int) ( $_POST['location_id'] ?? 0 );
 	$agent_id    = (int) ( $_POST['agent_id']    ?? 0 );
 
@@ -573,7 +642,9 @@ function lpdf_ajax_get_available_services(): void {
 	}
 
 	$where = [ 'status' => 'active' ];
-	if ( $category_id ) {
+	if ( $service_id ) {
+		$where['id'] = $service_id; // single uncategorized service
+	} elseif ( $category_id ) {
 		$where['category_id'] = $category_id;
 	}
 	$services = ( new OsServiceModel() )->where( $where )->get_results_as_models();
@@ -628,6 +699,7 @@ function lpdf_ajax_get_available_dates(): void {
 	$year        = (int) ( $_POST['year']        ?? date( 'Y' ) );
 	$month       = (int) ( $_POST['month']       ?? date( 'n' ) );
 	$category_id = (int) ( $_POST['category_id'] ?? 0 );
+	$service_id  = (int) ( $_POST['service_id']  ?? 0 );
 	$location_id = (int) ( $_POST['location_id'] ?? 0 );
 	$agent_id    = (int) ( $_POST['agent_id']    ?? 0 );
 
@@ -636,7 +708,9 @@ function lpdf_ajax_get_available_dates(): void {
 	}
 
 	$where = [ 'status' => 'active' ];
-	if ( $category_id ) {
+	if ( $service_id ) {
+		$where['id'] = $service_id;
+	} elseif ( $category_id ) {
 		$where['category_id'] = $category_id;
 	}
 	$services = ( new OsServiceModel() )->where( $where )->get_results_as_models();
