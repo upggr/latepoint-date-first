@@ -231,21 +231,43 @@ function lpdf_render_modal(): void {
 		var state = {};
 		var availableDatesCache = {}; // "YYYY-MM|catId" → Set of "YYYY-MM-DD"
 
+		// data-* keys on the Elementor widget wrapper that belong to Elementor, not LatePoint
+		var SKIP_ATTRS = { id: 1, elementType: 1, eType: 1, settings: 1, widgetType: 1 };
+
 		function resetState() {
-			state = { locationId: 0, agentId: 0, hideSidePanel: null, hideSummary: null, crumbs: [], categoryId: null, singleServiceId: null, date: null };
+			state = { triggerAttrs: {}, locationId: 0, crumbs: [], categoryId: null, singleServiceId: null, date: null };
 		}
 
 		// ---- Open / close ----
 
 		function open(trigger) {
 			resetState();
-			state.locationId    = trigger.dataset.selectedLocation || trigger.dataset.location || 0;
-			state.agentId       = trigger.dataset.selectedAgent   || 0;
-			state.hideSidePanel = trigger.dataset.hideSidePanel || null;
-			state.hideSummary   = trigger.dataset.hideSummary   || null;
+			// Collect all data-* attributes from the trigger, skipping Elementor internals.
+			var ds = trigger.dataset;
+			var attrs = {};
+			for (var key in ds) {
+				if (!SKIP_ATTRS[key]) attrs[key] = ds[key];
+			}
+			state.triggerAttrs = attrs;
+			// Convenience aliases used by AJAX requests
+			state.locationId = attrs.selectedLocation || attrs.location || 0;
 			overlay.style.display = 'flex';
 			document.body.style.overflow = 'hidden';
 			showCategories(0); // start at root
+		}
+
+		// Apply all stored trigger attributes to a LatePoint booking button.
+		// Skips keys that our plugin controls (service, date, time, source-id).
+		var OWN_ATTRS = { selectedService: 1, selectedStartDate: 1, calendarStartDate: 1, selectedStartTime: 1, sourceId: 1 };
+		function applyTriggerAttrs(btn) {
+			var attrs = state.triggerAttrs;
+			for (var key in attrs) {
+				if (!OWN_ATTRS[key]) {
+					// convert camelCase dataset key back to kebab-case attribute name
+					var attrName = 'data-' + key.replace(/([A-Z])/g, function(c){ return '-' + c.toLowerCase(); });
+					btn.setAttribute(attrName, attrs[key]);
+				}
+			}
 		}
 
 		function close() {
@@ -337,10 +359,7 @@ function lpdf_render_modal(): void {
 					btn.className += ' os_trigger_booking';
 					btn.setAttribute('data-selected-service', cat.id);
 					btn.setAttribute('data-source-id', 'lpdf-svc-' + cat.id);
-					if (state.locationId    && state.locationId    !== '0') { btn.setAttribute('data-selected-location',  state.locationId); }
-					if (state.agentId       && state.agentId       !== '0') { btn.setAttribute('data-selected-agent',      state.agentId); }
-					if (state.hideSidePanel)                                 { btn.setAttribute('data-hide-side-panel',     state.hideSidePanel); }
-					if (state.hideSummary)                                   { btn.setAttribute('data-hide-summary',        state.hideSummary); }
+					applyTriggerAttrs(btn);
 					// LatePoint's delegated os_trigger_booking handler fires on click.
 					// Our MutationObserver auto-closes this modal when LatePoint opens.
 				} else {
@@ -389,7 +408,7 @@ function lpdf_render_modal(): void {
 			fd.append('category_id', state.categoryId    || 0);
 			fd.append('service_id',  state.singleServiceId || 0);
 			fd.append('location_id', state.locationId    || 0);
-			fd.append('agent_id',    state.agentId       || 0);
+			fd.append('agent_id',    state.triggerAttrs.selectedAgent || 0);
 
 			fetch(AJAX_URL, { method: 'POST', body: fd })
 				.then(function(r){ return r.json(); })
@@ -508,7 +527,7 @@ function lpdf_render_modal(): void {
 			fd.append('category_id', state.categoryId    || 0);
 			fd.append('service_id',  state.singleServiceId || 0);
 			fd.append('location_id', state.locationId    || 0);
-			fd.append('agent_id',    state.agentId       || 0);
+			fd.append('agent_id',    state.triggerAttrs.selectedAgent || 0);
 
 			fetch(AJAX_URL, { method:'POST', body:fd })
 				.then(function(r){ return r.json(); })
@@ -566,10 +585,7 @@ function lpdf_render_modal(): void {
 						if (svc.start_time !== null && svc.start_time !== undefined) {
 							btn.setAttribute('data-selected-start-time', svc.start_time);
 						}
-						if (state.locationId    && state.locationId    !== '0')    { btn.setAttribute('data-selected-location',  state.locationId); }
-						if (state.agentId       && state.agentId       !== '0')    { btn.setAttribute('data-selected-agent',      state.agentId); }
-						if (state.hideSidePanel)                                    { btn.setAttribute('data-hide-side-panel',     state.hideSidePanel); }
-						if (state.hideSummary)                                      { btn.setAttribute('data-hide-summary',        state.hideSummary); }
+						applyTriggerAttrs(btn);
 						btn.innerHTML =
 							'<span class="lpdf-service-name">' + escHtml(svc.name) + '</span>' +
 							(svc.price ? '<span class="lpdf-service-meta">' + escHtml(svc.price) + '</span>' : '');
