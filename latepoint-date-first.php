@@ -639,12 +639,13 @@ function lpdf_ajax_get_categories(): void {
 	// so they appear as direct options alongside top-level categories.
 	if ( ! $parent_id ) {
 		$uncategorized = $wpdb->get_results(
-			"SELECT id, name, price FROM {$wpdb->prefix}latepoint_services
+			"SELECT id, name, price_min FROM {$wpdb->prefix}latepoint_services
 			 WHERE status = 'active' AND (category_id = 0 OR category_id IS NULL)
 			 ORDER BY order_number ASC"
 		);
 		foreach ( $uncategorized as $svc ) {
-			$categories[] = [ 'id' => (int) $svc->id, 'name' => $svc->name, 'type' => 'service', 'price' => OsMoneyHelper::format_price( $svc->price ) ];
+			$price = $svc->price_min > 0 ? OsMoneyHelper::format_price( $svc->price_min ) : '';
+			$categories[] = [ 'id' => (int) $svc->id, 'name' => $svc->name, 'type' => 'service', 'price' => $price ];
 		}
 	}
 
@@ -714,7 +715,7 @@ function lpdf_ajax_get_available_services(): void {
 		$available[] = [
 			'id'         => (int) $service->id,
 			'name'       => $service->name,
-			'price'      => OsMoneyHelper::format_price( $service->price ),
+			'price'      => $service->price_min > 0 ? OsMoneyHelper::format_price( $service->price_min ) : '',
 			// Pass start_time when there is exactly one unique slot so LatePoint skips
 			// the datepicker step entirely (requires both selected_start_date + selected_start_time).
 			'start_time' => count( $unique_times ) === 1 ? (int) reset( $unique_times ) : null,
