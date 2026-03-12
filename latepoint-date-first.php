@@ -126,21 +126,26 @@ function lpdf_render_modal(): void {
 	#lpdf-body { padding: 16px 28px 28px; }
 
 	/* ── List buttons (categories & services) ── */
-	.lpdf-list { display: flex; flex-direction: column; gap: 6px; }
+	.lpdf-list { display: flex; flex-direction: column; gap: 8px; }
 	.lpdf-list-btn, .lpdf-service-btn {
-		display: flex; align-items: center; justify-content: space-between;
-		width: 100%; padding: 16px 18px;
-		border-radius: 2px; cursor: pointer; text-align: left;
+		display: flex; align-items: center; gap: 14px;
+		width: 100%; padding: 14px 16px;
+		border-radius: 6px; cursor: pointer; text-align: left;
 		font-family: 'Quattrocento Sans', sans-serif; font-size: 14px;
 		border: 1px solid #e8dfd0; background: #fff;
 		transition: border-color .15s, background .15s;
 		letter-spacing: .02em;
 	}
-	.lpdf-list-btn:hover   { border-color: #C3B59B; background: #fdf8f0; }
-	.lpdf-service-btn:hover { border-color: #C3B59B; background: #fdf8f0; }
-	.lpdf-btn-label { font-weight: 400; color: #3B2F2F; }
-	.lpdf-btn-meta  { font-size: 12px; color: #C3B59B; margin-left: 12px; white-space: nowrap; }
-	.lpdf-btn-arrow { color: #C3B59B; font-size: 14px; margin-left: 8px; }
+	.lpdf-list-btn:hover, .lpdf-service-btn:hover { border-color: #C3B59B; background: #fdf8f0; }
+	.lpdf-btn-thumb {
+		width: 52px; height: 52px; border-radius: 4px; object-fit: cover; flex-shrink: 0;
+	}
+	.lpdf-btn-body { flex: 1; min-width: 0; }
+	.lpdf-btn-label { font-weight: 400; color: #3B2F2F; font-size: 14px; display: block; }
+	.lpdf-btn-desc  { font-size: 12px; color: #9b8c7e; margin-top: 2px; display: block;
+	                  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+	.lpdf-btn-price { font-size: 14px; color: #6b5c4e; white-space: nowrap; flex-shrink: 0; margin-left: 8px; }
+	.lpdf-btn-arrow { color: #C3B59B; font-size: 14px; flex-shrink: 0; }
 
 	/* ── Calendar ── */
 	.lpdf-cal-nav {
@@ -188,8 +193,9 @@ function lpdf_render_modal(): void {
 		font-size: 10px; font-weight: 400; text-transform: uppercase;
 		letter-spacing: .1em; color: #C3B59B; margin: 0 0 10px;
 	}
-	.lpdf-service-name { font-weight: 400; color: #3B2F2F; }
-	.lpdf-service-meta { font-size: 12px; color: #C3B59B; margin-left: 12px; }
+	.lpdf-service-name { font-weight: 400; color: #3B2F2F; font-size: 14px; display: block; }
+	.lpdf-service-desc { font-size: 12px; color: #9b8c7e; margin-top: 2px; display: block; }
+	.lpdf-service-meta { font-size: 14px; color: #6b5c4e; white-space: nowrap; flex-shrink: 0; margin-left: 8px; }
 
 	/* ── States ── */
 	.lpdf-no-avail {
@@ -352,9 +358,14 @@ function lpdf_render_modal(): void {
 			cats.forEach(function(cat){
 				var btn = document.createElement('button');
 				btn.className = 'lpdf-list-btn';
-				btn.innerHTML = '<span class="lpdf-btn-label">' + escHtml(cat.name) + '</span>'
-				+ (cat.price ? '<span class="lpdf-btn-meta">' + escHtml(cat.price) + '</span>' : '')
-				+ '<span class="lpdf-btn-arrow">›</span>';
+				btn.innerHTML =
+				(cat.thumb ? '<img class="lpdf-btn-thumb" src="' + escHtml(cat.thumb) + '" alt="">' : '')
+				+ '<span class="lpdf-btn-body">'
+				+   '<span class="lpdf-btn-label">' + escHtml(cat.name) + '</span>'
+				+   (cat.description ? '<span class="lpdf-btn-desc">' + escHtml(cat.description) + '</span>' : '')
+				+ '</span>'
+				+ (cat.price ? '<span class="lpdf-btn-price">' + escHtml(cat.price) + '</span>' : '')
+				+ (cat.type !== 'service' ? '<span class="lpdf-btn-arrow">›</span>' : '');
 				if (cat.type === 'service') {
 					// Uncategorized service (e.g. Restaurant Experience) — fire LatePoint directly.
 					// No intermediate date step needed; LatePoint shows its own full date+time picker.
@@ -589,8 +600,12 @@ function lpdf_render_modal(): void {
 						}
 						applyTriggerAttrs(btn);
 						btn.innerHTML =
-							'<span class="lpdf-service-name">' + escHtml(svc.name) + '</span>' +
-							(svc.price ? '<span class="lpdf-service-meta">' + escHtml(svc.price) + '</span>' : '');
+							(svc.thumb ? '<img class="lpdf-btn-thumb" src="' + escHtml(svc.thumb) + '" alt="">' : '')
+							+ '<span class="lpdf-btn-body">'
+							+   '<span class="lpdf-service-name">' + escHtml(svc.name) + '</span>'
+							+   (svc.description ? '<span class="lpdf-service-desc">' + escHtml(svc.description) + '</span>' : '')
+							+ '</span>'
+							+ (svc.price ? '<span class="lpdf-service-meta">' + escHtml(svc.price) + '</span>' : '');
 						list.appendChild(btn);
 					});
 					sw.appendChild(list);
@@ -612,6 +627,31 @@ function lpdf_render_modal(): void {
 }
 
 // ---------------------------------------------------------------------------
+// Helper: get service thumbnail URL from LatePoint media attachments
+// ---------------------------------------------------------------------------
+
+function lpdf_get_service_thumb( int $service_id ): string {
+	$service = new OsServiceModel( $service_id );
+	// Try service's own image first, then fall back to its category's image.
+	foreach ( [ $service->selection_image_id, ( new OsServiceCategoryModel( (int) $service->category_id ) )->selection_image_id ] as $img_id ) {
+		if ( $img_id ) {
+			$url = wp_get_attachment_image_url( (int) $img_id, 'thumbnail' );
+			if ( $url ) return $url;
+		}
+	}
+	return '';
+}
+
+function lpdf_get_category_thumb( int $category_id ): string {
+	$cat = new OsServiceCategoryModel( $category_id );
+	if ( $cat->selection_image_id ) {
+		$url = wp_get_attachment_image_url( (int) $cat->selection_image_id, 'thumbnail' );
+		if ( $url ) return $url;
+	}
+	return '';
+}
+
+// ---------------------------------------------------------------------------
 // AJAX: get categories by parent_id
 // ---------------------------------------------------------------------------
 
@@ -625,27 +665,33 @@ function lpdf_ajax_get_categories(): void {
 
 	global $wpdb;
 	$rows = $wpdb->get_results( $wpdb->prepare(
-		"SELECT id, name FROM {$wpdb->prefix}latepoint_service_categories
+		"SELECT id, name, short_description, selection_image_id FROM {$wpdb->prefix}latepoint_service_categories
 		 WHERE " . ( $parent_id ? "parent_id = %d" : "parent_id IS NULL OR parent_id = 0" ) . "
 		 ORDER BY order_number ASC",
 		...( $parent_id ? [ $parent_id ] : [] )
 	) );
 
 	$categories = array_map( function( $r ) {
-		return [ 'id' => (int) $r->id, 'name' => $r->name, 'type' => 'category' ];
+		$thumb = '';
+		if ( $r->selection_image_id ) {
+			$url = wp_get_attachment_image_url( (int) $r->selection_image_id, 'thumbnail' );
+			if ( $url ) $thumb = $url;
+		}
+		return [ 'id' => (int) $r->id, 'name' => $r->name, 'type' => 'category', 'description' => $r->short_description ?: '', 'thumb' => $thumb ];
 	}, $rows );
 
 	// At root level (parent_id=0), also include active services with no category
 	// so they appear as direct options alongside top-level categories.
 	if ( ! $parent_id ) {
 		$uncategorized = $wpdb->get_results(
-			"SELECT id, name, price_min FROM {$wpdb->prefix}latepoint_services
-			 WHERE status = 'active' AND (category_id = 0 OR category_id IS NULL)
+			"SELECT id, name, price_min, short_description, bg_color FROM {$wpdb->prefix}latepoint_services
+			 WHERE status = 'active' AND visibility != 'hidden' AND (category_id = 0 OR category_id IS NULL)
 			 ORDER BY order_number ASC"
 		);
 		foreach ( $uncategorized as $svc ) {
 			$price = $svc->price_min > 0 ? OsMoneyHelper::format_price( $svc->price_min ) : '';
-			$categories[] = [ 'id' => (int) $svc->id, 'name' => $svc->name, 'type' => 'service', 'price' => $price ];
+			$thumb = lpdf_get_service_thumb( (int) $svc->id );
+			$categories[] = [ 'id' => (int) $svc->id, 'name' => $svc->name, 'type' => 'service', 'price' => $price, 'description' => $svc->short_description ?: '', 'thumb' => $thumb ];
 		}
 	}
 
@@ -678,7 +724,7 @@ function lpdf_ajax_get_available_services(): void {
 		wp_send_json_error( [ 'message' => 'Invalid date.' ] );
 	}
 
-	$where = [ 'status' => 'active' ];
+	$where = [ 'status' => 'active', 'visibility' => 'visible' ];
 	if ( $service_id ) {
 		$where['id'] = $service_id; // single uncategorized service
 	} elseif ( $category_id ) {
@@ -713,12 +759,14 @@ function lpdf_ajax_get_available_services(): void {
 		$unique_times = array_unique( array_map( function ( $s ) { return $s->start_time; }, $slots ) );
 
 		$available[] = [
-			'id'         => (int) $service->id,
-			'name'       => $service->name,
-			'price'      => $service->price_min > 0 ? OsMoneyHelper::format_price( $service->price_min ) : '',
+			'id'          => (int) $service->id,
+			'name'        => $service->name,
+			'price'       => $service->price_min > 0 ? OsMoneyHelper::format_price( $service->price_min ) : '',
+			'description' => $service->short_description ?: '',
+			'thumb'       => lpdf_get_service_thumb( (int) $service->id ),
 			// Pass start_time when there is exactly one unique slot so LatePoint skips
 			// the datepicker step entirely (requires both selected_start_date + selected_start_time).
-			'start_time' => count( $unique_times ) === 1 ? (int) reset( $unique_times ) : null,
+			'start_time'  => count( $unique_times ) === 1 ? (int) reset( $unique_times ) : null,
 		];
 	}
 
